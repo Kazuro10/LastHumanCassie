@@ -1,8 +1,6 @@
-using System.Collections.Generic;
 using System.Linq;
 using Exiled.API.Features;
 using Exiled.Events.EventArgs.Player;
-using MEC;
 using PlayerRoles;
 
 namespace LastHumanCassie
@@ -14,7 +12,6 @@ namespace LastHumanCassie
         private bool _announcedThisRound;
         private bool _pendingAnnouncement;
         private bool _wasLastHumanState;
-        private CoroutineHandle _delayCoroutine;
 
         public EventHandlers(Plugin plugin)
         {
@@ -43,7 +40,7 @@ namespace LastHumanCassie
 
         public void OnChangingRole(ChangingRoleEventArgs ev)
         {
-            Timing.CallDelayed(0.1f, CheckLastHuman);
+            CheckLastHuman();
         }
 
         private void ResetState()
@@ -51,9 +48,6 @@ namespace LastHumanCassie
             _announcedThisRound = false;
             _pendingAnnouncement = false;
             _wasLastHumanState = false;
-
-            if (_delayCoroutine.IsRunning)
-                Timing.KillCoroutines(_delayCoroutine);
         }
 
         private void CheckLastHuman()
@@ -65,20 +59,12 @@ namespace LastHumanCassie
             bool isLastHumanNow = humanCount == 1;
 
             if (_plugin.Config.Debug)
-            {
-                Log.Debug(
-                    $"HumanCount={humanCount}, IsLastHumanNow={isLastHumanNow}, WasLastHumanState={_wasLastHumanState}, AnnouncedThisRound={_announcedThisRound}, Pending={_pendingAnnouncement}",
-                    _plugin.Config.Debug);
-            }
+                Log.Debug($"HumanCount={humanCount}, IsLastHumanNow={isLastHumanNow}, WasLastHumanState={_wasLastHumanState}, AnnouncedThisRound={_announcedThisRound}, Pending={_pendingAnnouncement}");
 
             if (!isLastHumanNow)
             {
                 _wasLastHumanState = false;
                 _pendingAnnouncement = false;
-
-                if (_delayCoroutine.IsRunning)
-                    Timing.KillCoroutines(_delayCoroutine);
-
                 return;
             }
 
@@ -111,35 +97,20 @@ namespace LastHumanCassie
             _pendingAnnouncement = true;
             _wasLastHumanState = true;
 
-            if (_delayCoroutine.IsRunning)
-                Timing.KillCoroutines(_delayCoroutine);
-
-            _delayCoroutine = Timing.RunCoroutine(DelayedAnnouncement());
-        }
-
-        private IEnumerator<float> DelayedAnnouncement()
-        {
-            yield return Timing.WaitForSeconds(_plugin.Config.AnnouncementDelay);
+            Exiled.API.Features.Cassie.DelayedMessage(
+                _plugin.Config.CassieMessage,
+                _plugin.Config.AnnouncementDelay,
+                isHeld: false,
+                isNoisy: true,
+                isSubtitles: _plugin.Config.Subtitles);
 
             _pendingAnnouncement = false;
-
-            if (!Round.IsStarted || Round.IsEnded)
-                yield break;
-
-            int humanCount = Player.List.Count(IsCountedHuman);
-            if (humanCount != 1)
-            {
-                _wasLastHumanState = false;
-                yield break;
-            }
-
-            Cassie.Message(_plugin.Config.CassieMessage, isSubtitles: _plugin.Config.Subtitles);
 
             if (_plugin.Config.Mode == AnnouncementMode.OncePerRound)
                 _announcedThisRound = true;
 
             if (_plugin.Config.Debug)
-                Log.Debug($"CASSIE announced: {_plugin.Config.CassieMessage}", _plugin.Config.Debug);
+                Log.Debug($"Scheduled CASSIE announcement: {_plugin.Config.CassieMessage}");
         }
 
         private bool IsCountedHuman(Player player)
