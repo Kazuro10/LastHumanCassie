@@ -142,8 +142,9 @@ namespace LastHumanCassie
 
             _wasLastHumanState = true;
 
-            Cassie.Message(
+            Exiled.API.Features.Cassie.DelayedMessage(
                 _plugin.Config.CassieMessage,
+                0f,
                 isHeld: false,
                 isNoisy: true,
                 isSubtitles: _plugin.Config.Subtitles);
