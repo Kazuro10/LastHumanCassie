@@ -1,4 +1,4 @@
-## This plugin was made by AI!
+## This plugin was made with the use of AI.
 
 # LastHumanCassie
 
