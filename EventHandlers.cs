@@ -62,10 +62,11 @@ namespace LastHumanCassie
                 return;
 
             int humanCount = Player.List.Count(IsCountedHuman);
-            bool isLastHumanNow = humanCount == 1;
+            int scpCount = Player.List.Count(IsAliveScp);
+            bool isLastHumanNow = humanCount == 1 && scpCount > 0;
 
             if (_plugin.Config.Debug)
-                Log.Debug($"HumanCount={humanCount}, IsLastHumanNow={isLastHumanNow}, WasLastHumanState={_wasLastHumanState}, AnnouncedThisRound={_announcedThisRound}, Pending={_pendingAnnouncement}");
+                Log.Debug($"HumanCount={humanCount}, ScpCount={scpCount}, IsLastHumanNow={isLastHumanNow}, WasLastHumanState={_wasLastHumanState}, AnnouncedThisRound={_announcedThisRound}, Pending={_pendingAnnouncement}");
 
             if (!isLastHumanNow)
             {
@@ -129,10 +130,11 @@ namespace LastHumanCassie
                 return;
 
             int humanCount = Player.List.Count(IsCountedHuman);
-            bool isStillLastHuman = humanCount == 1;
+            int scpCount = Player.List.Count(IsAliveScp);
+            bool isStillLastHuman = humanCount == 1 && scpCount > 0;
 
             if (_plugin.Config.Debug)
-                Log.Debug($"Delayed check: HumanCount={humanCount}, IsStillLastHuman={isStillLastHuman}");
+                Log.Debug($"Delayed check: HumanCount={humanCount}, ScpCount={scpCount}, IsStillLastHuman={isStillLastHuman}");
 
             if (!isStillLastHuman)
             {
@@ -162,6 +164,14 @@ namespace LastHumanCassie
                 return false;
 
             return !player.IsScp && player.Role.Team != Team.Dead;
+        }
+
+        private bool IsAliveScp(Player player)
+        {
+            if (player == null || !player.IsVerified || !player.IsAlive)
+                return false;
+
+            return player.IsScp && player.Role.Team != Team.Dead;
         }
     }
 }
