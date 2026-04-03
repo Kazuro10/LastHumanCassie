@@ -1,3 +1,5 @@
+# This plugin was made by AI!
+
 # LastHumanCassie
 
 Plays a **C.A.S.S.I.E.** announcement when only **one human remains alive**.
