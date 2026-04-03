@@ -1,3 +1,4 @@
+## About
 **This plugin was made with the use of AI.**
 
 # LastHumanCassie
