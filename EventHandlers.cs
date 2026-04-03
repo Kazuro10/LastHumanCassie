@@ -1,6 +1,7 @@
 using System.Linq;
 using Exiled.API.Features;
 using Exiled.Events.EventArgs.Player;
+using MEC;
 using PlayerRoles;
 
 namespace LastHumanCassie
@@ -12,6 +13,7 @@ namespace LastHumanCassie
         private bool _announcedThisRound;
         private bool _pendingAnnouncement;
         private bool _wasLastHumanState;
+        private CoroutineHandle _pendingAnnouncementHandle;
 
         public EventHandlers(Plugin plugin)
         {
@@ -45,9 +47,13 @@ namespace LastHumanCassie
 
         private void ResetState()
         {
+            if (_pendingAnnouncementHandle.IsRunning)
+                Timing.KillCoroutines(_pendingAnnouncementHandle);
+
             _announcedThisRound = false;
             _pendingAnnouncement = false;
             _wasLastHumanState = false;
+            _pendingAnnouncementHandle = default;
         }
 
         private void CheckLastHuman()
@@ -64,7 +70,20 @@ namespace LastHumanCassie
             if (!isLastHumanNow)
             {
                 _wasLastHumanState = false;
-                _pendingAnnouncement = false;
+
+                if (_pendingAnnouncement)
+                {
+                    _pendingAnnouncement = false;
+
+                    if (_pendingAnnouncementHandle.IsRunning)
+                        Timing.KillCoroutines(_pendingAnnouncementHandle);
+
+                    _pendingAnnouncementHandle = default;
+
+                    if (_plugin.Config.Debug)
+                        Log.Debug("Cancelled pending last-human announcement because round is no longer in last-human state.");
+                }
+
                 return;
             }
 
@@ -80,37 +99,60 @@ namespace LastHumanCassie
                         return;
                     }
 
-                    StartAnnouncement();
+                    StartAnnouncementCheck();
                     break;
 
                 case AnnouncementMode.RepeatWhenLastHuman:
                     if (_wasLastHumanState)
                         return;
 
-                    StartAnnouncement();
+                    StartAnnouncementCheck();
                     break;
             }
         }
 
-        private void StartAnnouncement()
+        private void StartAnnouncementCheck()
         {
             _pendingAnnouncement = true;
+            _pendingAnnouncementHandle = Timing.CallDelayed(_plugin.Config.AnnouncementDelay, ConfirmAndAnnounce);
+
+            if (_plugin.Config.Debug)
+                Log.Debug($"Started delayed last-human confirmation for {_plugin.Config.AnnouncementDelay} seconds.");
+        }
+
+        private void ConfirmAndAnnounce()
+        {
+            _pendingAnnouncement = false;
+            _pendingAnnouncementHandle = default;
+
+            if (!Round.IsStarted || Round.IsEnded)
+                return;
+
+            int humanCount = Player.List.Count(IsCountedHuman);
+            bool isStillLastHuman = humanCount == 1;
+
+            if (_plugin.Config.Debug)
+                Log.Debug($"Delayed check: HumanCount={humanCount}, IsStillLastHuman={isStillLastHuman}");
+
+            if (!isStillLastHuman)
+            {
+                _wasLastHumanState = false;
+                return;
+            }
+
             _wasLastHumanState = true;
 
-            Exiled.API.Features.Cassie.DelayedMessage(
+            Cassie.Message(
                 _plugin.Config.CassieMessage,
-                _plugin.Config.AnnouncementDelay,
                 isHeld: false,
                 isNoisy: true,
                 isSubtitles: _plugin.Config.Subtitles);
-
-            _pendingAnnouncement = false;
 
             if (_plugin.Config.Mode == AnnouncementMode.OncePerRound)
                 _announcedThisRound = true;
 
             if (_plugin.Config.Debug)
-                Log.Debug($"Scheduled CASSIE announcement: {_plugin.Config.CassieMessage}");
+                Log.Debug($"Played CASSIE announcement: {_plugin.Config.CassieMessage}");
         }
 
         private bool IsCountedHuman(Player player)
